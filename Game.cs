@@ -96,7 +96,7 @@ namespace SimpleLudo
             if (candidate != null)
             {
                 int steps = candidateTarget - candidate.Index;
-                AnimateMove(candidate, steps, player);
+                AnimateMove(candidate, steps, candidateTarget, player);
                 return true;
             }
 
@@ -122,20 +122,25 @@ namespace SimpleLudo
             }
         }
 
-        void AnimateMove(Pawn pawn, int steps, Player player)
+        void AnimateMove(Pawn pawn, int steps, int targetIndex, Player player)
         {
             for (int i = 0; i < steps; i++)
             {
+                // if pawn is no longer on track (captured or finished), stop animating
+                if (!pawn.IsOnTrack()) break;
+
                 int remaining = steps - i;
                 int next;
-                // if remaining steps would land exactly on goal, step into goal
-                if (pawn.Index + remaining == Board.GoalIndex)
+
+                // If the movement's final target is the goal and we're currently on perimeter cell 40,
+                // then the next step should move into the Goal cell (targetIndex == GoalIndex).
+                if (pawn.Index == 40 && targetIndex == Board.GoalIndex)
                 {
                     next = Board.GoalIndex;
                 }
                 else
                 {
-                    // advance around perimeter
+                    // otherwise advance one position around perimeter
                     next = (pawn.Index % 40) + 1;
                 }
 
@@ -145,6 +150,9 @@ namespace SimpleLudo
 
                 // if landed on an opponent, capture
                 if (pawn.IsOnTrack()) CaptureAt(pawn.Index, player);
+
+                // if we've reached the goal, stop further movement
+                if (pawn.IsFinished()) break;
             }
 
             Console.WriteLine($"{player.Name} moves pawn to {pawn.Index}.");
