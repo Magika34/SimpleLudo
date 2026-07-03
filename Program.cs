@@ -14,96 +14,14 @@ namespace SimpleLudo
         // Proper start squares mapped onto the revised cross track path
         static int[] startSquares = { 1, 11, 21, 31 };
         static Random dice = new Random();
-
         static void Main(string[] args)
         {
             Console.WriteLine("=== WELCOME TO MINI LUDO ===");
-            Console.WriteLine($"First player to reach space {GOAL} wins!");
-            Console.WriteLine("Rules: roll a 6 to enter from Home, roll a 6 to get an extra turn. Capture sends a token back to Home.");
             Console.WriteLine("Press any key to start...\n");
             Console.ReadKey();
 
-            int currentPlayer = 0;
-            bool gameWon = false;
-
-            while (!gameWon)
-            {
-                Console.Clear();
-                DrawBoard();
-
-                Console.WriteLine($"\nIt's {playerNames[currentPlayer]}'s turn! (Press Enter to roll the dice)");
-                Console.ReadLine();
-
-                int roll = dice.Next(1, 7);
-                Console.WriteLine($"You rolled a {roll}!");
-
-                bool moved = false;
-
-                if (playerPositions[currentPlayer] == 0)
-                {
-                    if (roll == 6)
-                    {
-                        playerPositions[currentPlayer] = startSquares[currentPlayer];
-                        Console.WriteLine($"{playerNames[currentPlayer]} enters the board at {playerPositions[currentPlayer]}.");
-                        moved = true;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{playerNames[currentPlayer]} is at Home and needs a 6 to enter.");
-                    }
-                }
-                else
-                {
-                    int target = playerPositions[currentPlayer] + roll;
-                    if (target <= GOAL)
-                    {
-                        playerPositions[currentPlayer] = target;
-                        Console.WriteLine($"{playerNames[currentPlayer]} moves to space {playerPositions[currentPlayer]}.");
-                        moved = true;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Rolled too high! {playerNames[currentPlayer]} needs an exact roll to hit {GOAL}.");
-                    }
-                }
-
-                if (moved && playerPositions[currentPlayer] != 0 && playerPositions[currentPlayer] != GOAL)
-                {
-                    for (int i = 0; i < playerPositions.Length; i++)
-                    {
-                        if (i == currentPlayer) continue;
-                        if (playerPositions[i] == playerPositions[currentPlayer])
-                        {
-                            playerPositions[i] = 0;
-                            Console.WriteLine($"💥 BOOM! {playerNames[currentPlayer]} captured {playerNames[i]} and sent them back to Home!");
-                        }
-                    }
-                }
-
-                if (playerPositions[currentPlayer] == GOAL)
-                {
-                    Console.Clear();
-                    DrawBoard();
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"\n🎉🎉🎉 PLAYER {playerNames[currentPlayer].ToUpper()} WINS THE GAME! 🎉🎉🎉");
-                    Console.ResetColor();
-                    gameWon = true;
-                    break;
-                }
-
-                if (roll == 6)
-                {
-                    Console.WriteLine($"{playerNames[currentPlayer]} rolled a 6 and gets another turn!");
-                    Thread.Sleep(1500);
-                    continue;
-                }
-
-                Thread.Sleep(1200);
-                currentPlayer = (currentPlayer + 1) % playerPositions.Length;
-            }
-
-            Console.WriteLine("\nPress any key to exit...");
-            Console.ReadKey();
+            var game = new Game();
+            game.Run();
         }
 
         static void DrawBoard()
