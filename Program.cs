@@ -1,21 +1,27 @@
 ﻿    
 using System;
+using System.Linq;
 using System.Threading;
 
 namespace SimpleLudo
 {
     class Program
     {
-        // Define the goal position. A short 30-step track keeps the game fast.
-        const int GOAL = 30;
-        static int[] playerPositions = { 0, 0 }; // Player 1 (Red) and Player 2 (Green)
-        static string[] playerNames = { "Red", "Green" };
+        // Simplified Ludo-style track
+        const int GOAL = 40; // finish line index
+        // 0 means at Home, 1..GOAL are track positions, GOAL is the final safe goal
+        static int[] playerPositions = { 0, 0, 0, 0 };
+        static string[] playerNames = { "Red", "Green", "Yellow", "Blue" };
+        static ConsoleColor[] playerColors = { ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Yellow, ConsoleColor.Blue };
+        // Each player's entry (start) square on the track
+        static int[] startSquares = { 1, 11, 21, 31 };
         static Random dice = new Random();
 
         static void Main(string[] args)
         {
             Console.WriteLine("=== WELCOME TO MINI LUDO ===");
             Console.WriteLine($"First player to reach space {GOAL} wins!");
+            Console.WriteLine("Rules: roll a 6 to enter from Home, roll a 6 to get an extra turn. Capture sends a token back to Home.");
             Console.WriteLine("Press any key to start...\n");
             Console.ReadKey();
 
@@ -27,30 +33,56 @@ namespace SimpleLudo
                 Console.Clear();
                 DrawBoard();
 
-                Console.WriteLine($"\nIt's Player {playerNames[currentPlayer]}'s turn!");
-                Console.WriteLine("Press Enter to roll the dice...");
+                Console.WriteLine($"\nIt's {playerNames[currentPlayer]}'s turn! (Press Enter to roll the dice)");
                 Console.ReadLine();
 
                 int roll = dice.Next(1, 7);
                 Console.WriteLine($"You rolled a {roll}!");
 
-                // Logic to move the player
-                if (playerPositions[currentPlayer] + roll <= GOAL)
-                {
-                    playerPositions[currentPlayer] += roll;
-                    Console.WriteLine($"{playerNames[currentPlayer]} moves to space {playerPositions[currentPlayer]}.");
+                bool moved = false;
 
-                    // Simple capturing mechanic: if you land on the opponent, send them back to 0!
-                    int opponent = (currentPlayer == 0) ? 1 : 0;
-                    if (playerPositions[currentPlayer] == playerPositions[opponent] && playerPositions[currentPlayer] != 0)
+                // If at Home (0), need a 6 to enter
+                if (playerPositions[currentPlayer] == 0)
+                {
+                    if (roll == 6)
                     {
-                        playerPositions[opponent] = 0;
-                        Console.WriteLine($"💥 BOOM! {playerNames[currentPlayer]} captured {playerNames[opponent]} and sent them back to the start!");
+                        playerPositions[currentPlayer] = startSquares[currentPlayer];
+                        Console.WriteLine($"{playerNames[currentPlayer]} enters the board at {playerPositions[currentPlayer]}.");
+                        moved = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{playerNames[currentPlayer]} is at Home and needs a 6 to enter.");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"Rolled too high! {playerNames[currentPlayer]} needs an exact roll to hit {GOAL}.");
+                    // Move along the linear track and require exact roll to reach GOAL
+                    int target = playerPositions[currentPlayer] + roll;
+                    if (target <= GOAL)
+                    {
+                        playerPositions[currentPlayer] = target;
+                        Console.WriteLine($"{playerNames[currentPlayer]} moves to space {playerPositions[currentPlayer]}.");
+                        moved = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Rolled too high! {playerNames[currentPlayer]} needs an exact roll to hit {GOAL}.");
+                    }
+                }
+
+                // Capture mechanic: if you land on an opponent on the track (not Home and not GOAL), send them to Home
+                if (moved && playerPositions[currentPlayer] != 0 && playerPositions[currentPlayer] != GOAL)
+                {
+                    for (int i = 0; i < playerPositions.Length; i++)
+                    {
+                        if (i == currentPlayer) continue;
+                        if (playerPositions[i] == playerPositions[currentPlayer])
+                        {
+                            playerPositions[i] = 0;
+                            Console.WriteLine($"💥 BOOM! {playerNames[currentPlayer]} captured {playerNames[i]} and sent them back to Home!");
+                        }
+                    }
                 }
 
                 // Check for win condition
@@ -65,10 +97,18 @@ namespace SimpleLudo
                     break;
                 }
 
-                Thread.Sleep(2000); // Pause for 2 seconds so players can read the result
+                // If roll was 6, current player gets another turn
+                if (roll == 6)
+                {
+                    Console.WriteLine($"{playerNames[currentPlayer]} rolled a 6 and gets another turn!");
+                    Thread.Sleep(1500);
+                    continue; // do not switch player
+                }
+
+                Thread.Sleep(1200); // Pause so players can read the result
 
                 // Switch turns
-                currentPlayer = (currentPlayer == 0) ? 1 : 0;
+                currentPlayer = (currentPlayer + 1) % playerPositions.Length;
             }
 
             Console.WriteLine("\nPress any key to exit...");
@@ -78,28 +118,54 @@ namespace SimpleLudo
         // Draws a visual text-based track representing the game board
         static void DrawBoard()
         {
-            Console.WriteLine("Board Track:");
+            // Show which players are at Home
+            Console.WriteLine("Home:");
+            for (int p = 0; p < playerNames.Length; p++)
+            {
+                Console.ForegroundColor = playerColors[p];
+                string status = playerPositions[p] == 0 ? "(Home)" : $"(Pos {playerPositions[p]})";
+                Console.WriteLine($" {playerNames[p]} {status}");
+            }
+            Console.ResetColor();
+
+            Console.WriteLine("\nBoard Track:");
             for (int i = 0; i <= GOAL; i++)
             {
-                if (playerPositions[0] == i && playerPositions[1] == i && i != 0)
+                // collect players at this index
+                var playersHere = Enumerable.Range(0, playerPositions.Length).Where(idx => playerPositions[idx] == i).ToArray();
+
+                if (playersHere.Length > 0 && i != 0)
                 {
-                    Console.Write("[R&G]"); // Both players on the same spot
-                }
-                else if (playerPositions[0] == i && i != 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("[ R ]");
-                    Console.ResetColor();
-                }
-                else if (playerPositions[1] == i && i != 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("[ G ]");
-                    Console.ResetColor();
+                    if (playersHere.Length == 1)
+                    {
+                        int p = playersHere[0];
+                        Console.ForegroundColor = playerColors[p];
+                        Console.Write($"[{playerNames[p][0]}]");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        // multiple players on same spot
+                        Console.Write("[");
+                        for (int k = 0; k < playersHere.Length; k++)
+                        {
+                            Console.Write(playerNames[playersHere[k]][0]);
+                            if (k < playersHere.Length - 1) Console.Write("&");
+                        }
+                        Console.Write("]");
+                    }
                 }
                 else if (i == 0)
                 {
-                    Console.Write("[Start]");
+                    Console.Write("[Home]");
+                }
+                else if (startSquares.Contains(i))
+                {
+                    // mark start squares with the first letter of the owner
+                    int owner = Array.IndexOf(startSquares, i);
+                    Console.ForegroundColor = playerColors[owner];
+                    Console.Write($"[S{playerNames[owner][0]}]");
+                    Console.ResetColor();
                 }
                 else if (i == GOAL)
                 {
@@ -107,7 +173,7 @@ namespace SimpleLudo
                 }
                 else
                 {
-                    Console.Write($"[ {i.ToString("D2")} ]");
+                    Console.Write($"[{i.ToString("D2")}]");
                 }
 
                 // Break lines every 10 spaces to make it look like a grid board
