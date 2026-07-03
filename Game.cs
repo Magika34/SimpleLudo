@@ -83,19 +83,20 @@ namespace SimpleLudo
                 var homePawn = player.Pawns.FirstOrDefault(p => p.IsAtHome());
                 if (homePawn != null)
                 {
+                    // animate entering
                     homePawn.Enter(player.StartIndex);
+                    Board.Draw(Players);
                     Console.WriteLine($"{player.Name} enters a pawn at {player.StartIndex}.");
-                    // capture any opponent here
                     CaptureAt(player.StartIndex, player);
+                    Thread.Sleep(400);
                     return true;
                 }
             }
 
             if (candidate != null)
             {
-                candidate.MoveTo(candidateTarget, Board.GoalIndex);
-                Console.WriteLine($"{player.Name} moves pawn to {candidateTarget}.");
-                if (candidate.IsOnTrack()) CaptureAt(candidate.Index, player);
+                int steps = candidateTarget - candidate.Index;
+                AnimateMove(candidate, steps, player);
                 return true;
             }
 
@@ -113,10 +114,41 @@ namespace SimpleLudo
                     if (pa.IsOnTrack() && pa.Index == index)
                     {
                         pa.SendHome();
+                        Board.Draw(Players);
                         Console.WriteLine($"BOOM! {mover.Name} captured {pl.Name}'s pawn.");
+                        Thread.Sleep(400);
                     }
                 }
             }
+        }
+
+        void AnimateMove(Pawn pawn, int steps, Player player)
+        {
+            for (int i = 0; i < steps; i++)
+            {
+                int remaining = steps - i;
+                int next;
+                // if remaining steps would land exactly on goal, step into goal
+                if (pawn.Index + remaining == Board.GoalIndex)
+                {
+                    next = Board.GoalIndex;
+                }
+                else
+                {
+                    // advance around perimeter
+                    next = (pawn.Index % 40) + 1;
+                }
+
+                pawn.MoveTo(next, Board.GoalIndex);
+                Board.Draw(Players);
+                Thread.Sleep(300);
+
+                // if landed on an opponent, capture
+                if (pawn.IsOnTrack()) CaptureAt(pawn.Index, player);
+            }
+
+            Console.WriteLine($"{player.Name} moves pawn to {pawn.Index}.");
+            Thread.Sleep(250);
         }
     }
 }
