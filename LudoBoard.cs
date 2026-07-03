@@ -67,12 +67,12 @@ namespace SimpleLudo
             return null;
         }
 
-        public void Draw(List<Player> players)
+        // Draw with optional moving pawn highlighted
+        public void Draw(List<Player> players, Pawn movingPawn = null)
         {
-            // reuse console board drawing but using board data
             Console.WriteLine();
 
-            // Show Home statuses
+            // Show player statuses
             Console.WriteLine("Players:");
             foreach (var p in players)
             {
@@ -81,10 +81,13 @@ namespace SimpleLudo
             }
             Console.ResetColor();
 
-            // build grid index
+            // grid index
             var gridIndex = new int[11, 11];
             for (int yy = 0; yy < 11; yy++) for (int xx = 0; xx < 11; xx++) gridIndex[xx, yy] = -1;
             foreach (var kv in Cells) gridIndex[kv.Value.X, kv.Value.Y] = kv.Key;
+
+            // safe/star indices (approximate)
+            var safe = new HashSet<int> { 5, 15, 25, 35 };
 
             Console.WriteLine();
             for (int y = 0; y < 11; y++)
@@ -93,37 +96,79 @@ namespace SimpleLudo
                 {
                     int idx = gridIndex[x, y];
 
-                    // players here
-                    var playersHere = new List<Player>();
-                    var pawnsHere = new List<string>();
+                    // determine pawns here
+                    var pawnsHere = new System.Collections.Generic.List<(Player player, Pawn pawn)>();
                     foreach (var pl in players)
                     {
                         foreach (var pa in pl.Pawns)
                         {
-                            if (pa.Index != 0 && pa.Index == idx) pawnsHere.Add(pl.Name[0].ToString());
-                            if (pa.Index != 0 && pa.Index == GoalIndex && idx == GoalIndex) pawnsHere.Add(pl.Name[0].ToString());
+                            if (pa.Index != 0 && pa.Index == idx) pawnsHere.Add((pl, pa));
+                            if (pa.Index != 0 && pa.Index == GoalIndex && idx == GoalIndex) pawnsHere.Add((pl, pa));
                         }
                     }
 
-                    // center goal
+                    // corners (home areas)
+                    bool topLeft = x <= 4 && y <= 4;
+                    bool topRight = x >= 6 && y <= 4;
+                    bool bottomLeft = x <= 4 && y >= 6;
+                    bool bottomRight = x >= 6 && y >= 6;
+
+                    if (topLeft)
+                    {
+                        Console.Write("["); Console.BackgroundColor = ConsoleColor.Red; Console.Write("   "); Console.ResetColor(); Console.Write("]");
+                        continue;
+                    }
+                    if (topRight)
+                    {
+                        Console.Write("["); Console.BackgroundColor = ConsoleColor.Green; Console.Write("   "); Console.ResetColor(); Console.Write("]");
+                        continue;
+                    }
+                    if (bottomLeft)
+                    {
+                        Console.Write("["); Console.BackgroundColor = ConsoleColor.Blue; Console.Write("   "); Console.ResetColor(); Console.Write("]");
+                        continue;
+                    }
+                    if (bottomRight)
+                    {
+                        Console.Write("["); Console.BackgroundColor = ConsoleColor.Yellow; Console.Write("   "); Console.ResetColor(); Console.Write("]");
+                        continue;
+                    }
+
+                    // center
                     if (x == 5 && y == 5)
                     {
-                        Console.Write("[ G ]");
+                        Console.Write("["); Console.BackgroundColor = ConsoleColor.White; Console.ForegroundColor = ConsoleColor.Black; Console.Write(" + "); Console.ResetColor(); Console.Write("]");
                         continue;
                     }
 
                     if (idx == -1)
                     {
-                        // interior or corner
+                        // interior empty cell
                         Console.Write("[   ]");
                     }
                     else
                     {
-                        // show pawns if present
+                        // pawn(s) present
                         if (pawnsHere.Count > 0)
                         {
-                            string s = pawnsHere.Count == 1 ? $" {pawnsHere[0]} " : "*";
-                            Console.Write($"[{s}]");
+                            if (pawnsHere.Count == 1)
+                            {
+                                var pl = pawnsHere[0].player;
+                                var pa = pawnsHere[0].pawn;
+                                bool isMoving = movingPawn != null && pa == movingPawn;
+                                Console.Write("[");
+                                if (isMoving) { Console.BackgroundColor = ConsoleColor.White; Console.ForegroundColor = pl.Color; }
+                                else { Console.BackgroundColor = ConsoleColor.Black; Console.ForegroundColor = pl.Color; }
+                                Console.Write($" {pl.Name[0]} ");
+                                Console.ResetColor(); Console.Write("]");
+                            }
+                            else
+                            {
+                                // multiple pawns
+                                string s = string.Join("&", pawnsHere.Select(t => t.player.Name[0]));
+                                s = s.PadLeft(2).PadRight(3);
+                                Console.Write($"[{s}]");
+                            }
                         }
                         else if (StartIndices.Contains(idx))
                         {
@@ -134,15 +179,22 @@ namespace SimpleLudo
                         }
                         else
                         {
-                            // arrow to indicate path
-                            int next = GetNextIndex(idx);
-                            var cur = Cells[idx];
-                            var nxt = Cells[next];
-                            int dx = nxt.X - cur.X;
-                            int dy = nxt.Y - cur.Y;
-                            char arrow = '·';
-                            if (dx == 1) arrow = '>'; else if (dx == -1) arrow = '<'; else if (dy == 1) arrow = 'v'; else if (dy == -1) arrow = '^';
-                            Console.Write($"[{arrow}]");
+                            // path cell: show arrow or star for safe
+                            if (safe.Contains(idx))
+                            {
+                                Console.Write("[★]");
+                            }
+                            else
+                            {
+                                int next = GetNextIndex(idx);
+                                var cur = Cells[idx];
+                                var nxt = Cells[next];
+                                int dx = nxt.X - cur.X;
+                                int dy = nxt.Y - cur.Y;
+                                char arrow = '·';
+                                if (dx == 1) arrow = '→'; else if (dx == -1) arrow = '←'; else if (dy == 1) arrow = '↓'; else if (dy == -1) arrow = '↑';
+                                Console.Write($"[{arrow}]");
+                            }
                         }
                     }
                 }

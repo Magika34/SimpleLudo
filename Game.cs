@@ -30,7 +30,7 @@ namespace SimpleLudo
             while (!gameWon)
             {
                 Console.Clear();
-                Board.Draw(Players);
+                Board.Draw(Players, null);
 
                 var player = Players[currentPlayer];
                 Console.WriteLine($"\nIt's {player.Name}'s turn. Press Enter to roll the dice...");
@@ -85,7 +85,7 @@ namespace SimpleLudo
                 {
                     // animate entering
                     homePawn.Enter(player.StartIndex);
-                    Board.Draw(Players);
+                    Board.Draw(Players, homePawn);
                     Console.WriteLine($"{player.Name} enters a pawn at {player.StartIndex}.");
                     CaptureAt(player.StartIndex, player);
                     Thread.Sleep(400);
@@ -140,7 +140,7 @@ namespace SimpleLudo
                 }
 
                 pawn.MoveTo(next, Board.GoalIndex);
-                Board.Draw(Players);
+                Board.Draw(Players, pawn);
                 Thread.Sleep(300);
 
                 // if landed on an opponent, capture
