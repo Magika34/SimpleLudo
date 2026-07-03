@@ -8,7 +8,7 @@ namespace SimpleLudo
     class Program
     {
         // Simplified Ludo-style track
-        const int GOAL = 40; // finish line index
+        const int GOAL = 41; // finish line index (center cell index)
         // 0 means at Home, 1..GOAL are track positions, GOAL is the final safe goal
         static int[] playerPositions = { 0, 0, 0, 0 };
         static string[] playerNames = { "Red", "Green", "Yellow", "Blue" };
@@ -115,7 +115,7 @@ namespace SimpleLudo
             Console.ReadKey();
         }
 
-        // Draws a visual text-based track representing the game board
+        // Draws a visual 11x11 Ludo-style board with perimeter track and a center goal
         static void DrawBoard()
         {
             // Show which players are at Home
@@ -128,61 +128,102 @@ namespace SimpleLudo
             }
             Console.ResetColor();
 
-            Console.WriteLine("\nBoard Track:");
-            for (int i = 0; i <= GOAL; i++)
-            {
-                // collect players at this index
-                var playersHere = Enumerable.Range(0, playerPositions.Length).Where(idx => playerPositions[idx] == i).ToArray();
+            // Build perimeter mapping (11x11 grid -> 40 perimeter cells), starting at left-middle and going clockwise
+            var trackMap = new System.Collections.Generic.Dictionary<int, Tuple<int, int>>();
+            var coords = new System.Collections.Generic.List<Tuple<int, int>>();
+            // left column from middle up to top (including middle)
+            for (int y = 5; y >= 0; y--) coords.Add(Tuple.Create(0, y));
+            // top row left->right (excluding (0,0))
+            for (int x = 1; x <= 10; x++) coords.Add(Tuple.Create(x, 0));
+            // right column top->bottom (excluding (10,0))
+            for (int y = 1; y <= 10; y++) coords.Add(Tuple.Create(10, y));
+            // bottom row right->left (excluding (10,10))
+            for (int x = 9; x >= 0; x--) coords.Add(Tuple.Create(x, 10));
+            // left column bottom->middle (excluding (0,10) and excluding middle since already added)
+            for (int y = 9; y >= 6; y--) coords.Add(Tuple.Create(0, y));
 
-                if (playersHere.Length > 0 && i != 0)
+            for (int i = 0; i < coords.Count; i++)
+            {
+                trackMap[i + 1] = coords[i]; // indices 1..40
+            }
+            // center goal
+            trackMap[GOAL] = Tuple.Create(5, 5); // index 41 is center
+
+            // inverse map: grid -> track index
+            var gridIndex = new int[11, 11];
+            for (int yy = 0; yy < 11; yy++) for (int xx = 0; xx < 11; xx++) gridIndex[xx, yy] = -1;
+            foreach (var kv in trackMap)
+            {
+                gridIndex[kv.Value.Item1, kv.Value.Item2] = kv.Key;
+            }
+
+            Console.WriteLine("\nBoard:");
+            for (int y = 0; y < 11; y++)
+            {
+                for (int x = 0; x < 11; x++)
                 {
-                    if (playersHere.Length == 1)
+                    int idx = gridIndex[x, y];
+
+                    // find players at this grid index
+                    var playersHere = Enumerable.Range(0, playerPositions.Length).Where(p => playerPositions[p] != 0 && playerPositions[p] == idx).ToArray();
+
+                    if (playersHere.Length > 0)
                     {
-                        int p = playersHere[0];
-                        Console.ForegroundColor = playerColors[p];
-                        Console.Write($"[{playerNames[p][0]}]");
-                        Console.ResetColor();
+                        if (playersHere.Length == 1)
+                        {
+                            int p = playersHere[0];
+                            Console.ForegroundColor = playerColors[p];
+                            Console.Write($"[{playerNames[p][0]}]");
+                            Console.ResetColor();
+                        }
+                        else
+                        {
+                            Console.Write("[");
+                            for (int k = 0; k < playersHere.Length; k++)
+                            {
+                                Console.Write(playerNames[playersHere[k]][0]);
+                                if (k < playersHere.Length - 1) Console.Write("&");
+                            }
+                            Console.Write("]");
+                        }
+                        continue;
+                    }
+
+                    if (x == 5 && y == 5)
+                    {
+                        // center
+                        Console.Write("[ G ]");
+                        continue;
+                    }
+
+                    if (idx == -1)
+                    {
+                        // empty interior cell
+                        Console.Write("[   ]");
                     }
                     else
                     {
-                        // multiple players on same spot
-                        Console.Write("[");
-                        for (int k = 0; k < playersHere.Length; k++)
+                        // perimeter cell
+                        if (idx == 0)
                         {
-                            Console.Write(playerNames[playersHere[k]][0]);
-                            if (k < playersHere.Length - 1) Console.Write("&");
+                            Console.Write("[   ]");
                         }
-                        Console.Write("]");
+                        else if (startSquares.Contains(idx))
+                        {
+                            int owner = Array.IndexOf(startSquares, idx);
+                            Console.ForegroundColor = playerColors[owner];
+                            Console.Write($"[S{playerNames[owner][0]}]");
+                            Console.ResetColor();
+                        }
+                        else
+                        {
+                            Console.Write($"[{idx.ToString("D2")}]");
+                        }
                     }
                 }
-                else if (i == 0)
-                {
-                    Console.Write("[Home]");
-                }
-                else if (startSquares.Contains(i))
-                {
-                    // mark start squares with the first letter of the owner
-                    int owner = Array.IndexOf(startSquares, i);
-                    Console.ForegroundColor = playerColors[owner];
-                    Console.Write($"[S{playerNames[owner][0]}]");
-                    Console.ResetColor();
-                }
-                else if (i == GOAL)
-                {
-                    Console.Write("[GOAL]");
-                }
-                else
-                {
-                    Console.Write($"[{i.ToString("D2")}]");
-                }
-
-                // Break lines every 10 spaces to make it look like a grid board
-                if ((i + 1) % 10 == 0)
-                {
-                    Console.WriteLine();
-                }
+                Console.WriteLine();
             }
-            Console.WriteLine("\n");
+            Console.WriteLine();
         }
     }
 }
